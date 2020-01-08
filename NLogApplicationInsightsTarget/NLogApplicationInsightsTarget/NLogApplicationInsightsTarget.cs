@@ -1,7 +1,8 @@
 ﻿using Microsoft.ApplicationInsights;
+using Microsoft.ApplicationInsights.Extensibility;
 using NLog;
 using NLog.Common;
-using NLog.Layouts;
+using NLog.Config;
 using NLog.Targets;
 using System;
 using System.Collections.Generic;
@@ -14,20 +15,11 @@ namespace NLogApplicationInsightsTarget
     public class NLogApplicationInsightsTarget : TargetWithLayout
     {
         private DateTime lastLogEventTime;
-        private Layout instrumentationKeyLayout = string.Empty;
 
         internal TelemetryClient TelemetryClient { get; private set; }
 
-        public NLogApplicationInsightsTarget()
-        {
-            Layout = @"${message}";
-        }
-
-        public string InstrumentationKey
-        {
-            get => (instrumentationKeyLayout as SimpleLayout)?.Text ?? null;
-            set => instrumentationKeyLayout = value ?? string.Empty;
-        }
+        [RequiredParameter]
+        public string InstrumentationKey { get; set; }
 
         protected override void FlushAsync(AsyncContinuation asyncContinuation)
         {
@@ -55,15 +47,8 @@ namespace NLogApplicationInsightsTarget
         protected override void InitializeTarget()
         {
             base.InitializeTarget();
-#pragma warning disable CS0618 // Type or member is obsolete: TelemtryConfiguration.Active is used in TelemetryClient constructor.
-            TelemetryClient = new TelemetryClient();
-#pragma warning restore CS0618 // Type or member is obsolete
+            TelemetryClient = new TelemetryClient(new TelemetryConfiguration(InstrumentationKey));
 
-            string instrumentationKey = this.instrumentationKeyLayout.Render(LogEventInfo.CreateNullEvent());
-            if (!string.IsNullOrWhiteSpace(instrumentationKey))
-            {
-                TelemetryClient.Context.InstrumentationKey = instrumentationKey;
-            }
         }
 
         protected override void Write(LogEventInfo logEvent)
@@ -75,10 +60,9 @@ namespace NLogApplicationInsightsTarget
 
         private void Track(LogEventInfo logEvent)
         {
-            string logMessage = Layout.Render(logEvent);
             var props = logEvent.Properties?.ToDictionary(k => k.Key is string ? (string)k.Key : k.Key.ToString(), k => k.Value is string ? (string)k.Value : k.Value.ToString());
 
-            TelemetryClient.TrackEvent(logMessage, props ?? new Dictionary<string, string>());
+            TelemetryClient.TrackEvent(props["event"] ?? string.Empty, props ?? new Dictionary<string, string>());
         }
     }
 }
