@@ -82,8 +82,15 @@ namespace NLogApplicationInsightsTarget
         private void Track(LogEventInfo logEvent)
         {
             var props = logEvent.Properties?.ToDictionary(k => k.Key is string ? (string)k.Key : k.Key.ToString(), k => k.Value is string ? (string)k.Value : k.Value.ToString());
-
+            UpdateContext(props);
             TelemetryClient.TrackEvent(props["event"] ?? string.Empty, props ?? new Dictionary<string, string>());
+        }
+
+        private void UpdateContext(Dictionary<string,string> props)
+        {
+            if (props.ContainsKey("user")) TelemetryClient.Context.User.Id = props["user"];
+            if (props.ContainsKey("session")) TelemetryClient.Context.Session.Id = props["session"];
+            if (props.ContainsKey("device")) TelemetryClient.Context.Device.Id = props["device"];
         }
     }
 }
