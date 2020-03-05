@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 namespace NLogApplicationInsightsTarget
 {
     [Target("ApplicationInsightsTarget")]
-    public class NLogApplicationInsightsTarget : TargetWithLayout
+    public class ApplicationInsightsTarget : TargetWithLayout
     {
         private DateTime lastLogEventTime;
 
@@ -56,6 +56,27 @@ namespace NLogApplicationInsightsTarget
             lastLogEventTime = DateTime.UtcNow;
 
             Track(logEvent);
+        }
+
+        protected override void Write(IList<AsyncLogEventInfo> logEvents)
+        {
+            lastLogEventTime = DateTime.UtcNow;
+
+            foreach (var logEvent in logEvents)
+            {
+                Exception exception = null;
+
+                try
+                {
+                    Track(logEvent.LogEvent);
+                }
+                catch (Exception ex)
+                {
+                    exception = ex;
+                }
+
+                logEvent.Continuation(exception);
+            }
         }
 
         private void Track(LogEventInfo logEvent)
